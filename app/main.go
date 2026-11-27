@@ -355,7 +355,16 @@ func (a *App) captureWithEncoder(ctx context.Context, track *webrtc.TrackLocalSt
 		if err == nil {
 			return nil
 		}
-		log.Printf("native D3D11 capture with %s failed; using compatibility capture: %v", encoder, err)
+		log.Printf("native D3D11 capture with %s failed; trying D3D11 capture with system-memory scaling: %v", encoder, err)
+
+		err = a.captureProcess(ctx, track, nativeWindowsCompatibleFFmpegArgs(encoder))
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err == nil {
+			return nil
+		}
+		log.Printf("D3D11 capture with %s failed; using GDI compatibility capture: %v", encoder, err)
 	}
 	return a.captureProcess(ctx, track, ffmpegArgs(encoder))
 }
@@ -381,13 +390,11 @@ func (a *App) captureProcess(ctx context.Context, track *webrtc.TrackLocalStatic
 	if err != nil {
 		return err
 	}
-	ticker := time.NewTicker(time.Second / captureFPS)
-	defer ticker.Stop()
 	for frame := range frames {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		default:
 		}
 		if len(frame) > 0 {
 			_ = track.WriteSample(media.Sample{Data: frame, Duration: time.Second / captureFPS})
@@ -398,12 +405,16 @@ func (a *App) captureProcess(ctx context.Context, track *webrtc.TrackLocalStatic
 }
 
 func nativeWindowsFFmpegArgs(encoder string) []string {
-	filter := "scale_d3d11=width=1280:height=720:format=nv12"
-	if encoder == "h264_qsv" {
-		filter += ",hwmap=derive_device=qsv,format=qsv"
-	}
 	profile := "baseline"
 	encoderOptions := []string{}
+	args := []string{"-hide_banner", "-loglevel", "warning"}
+	if encoder == "h264_qsv" {
+		args = append(args, "-init_hw_device", "d3d11va=d3d11:0", "-filter_hw_device", "d3d11")
+	}
+	args = append(args, "-f", "lavfi", "-i", fmt.Sprintf("ddagrab=framerate=%d:draw_mouse=1", captureFPS))
+	if encoder == "h264_qsv" {
+		args = append(args, "-vf", "hwmap=derive_device=qsv,format=qsv")
+	}
 	switch encoder {
 	case "h264_nvenc":
 		encoderOptions = []string{"-preset", "p1", "-tune", "ull"}
@@ -415,13 +426,36 @@ func nativeWindowsFFmpegArgs(encoder string) []string {
 	case "h264_mf":
 		encoderOptions = []string{"-hw_encoding", "1", "-scenario", "display_remoting"}
 	}
+	args = append(args, "-c:v", encoder, "-profile:v", profile)
+	args = append(args, encoderOptions...)
+	args = append(args,
+		"-fps_mode", "passthrough", "-g", "30", "-bf", "0", "-b:v", "6M",
+		"-color_range", "pc", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
+		"-bsf:v", "h264_metadata=aud=insert", "-f", "h264", "pipe:1",
+	)
+	return args
+}
+
+func nativeWindowsCompatibleFFmpegArgs(encoder string) []string {
+	profile := "baseline"
+	pixelFormat := "nv12"
+	encoderOptions := []string{}
+	switch encoder {
+	case "h264_nvenc":
+		encoderOptions = []string{"-preset", "p1", "-tune", "ull"}
+	case "h264_amf":
+		profile = "constrained_baseline"
+		encoderOptions = []string{"-usage", "ultralowlatency", "-quality", "speed"}
+	case "h264_qsv":
+		encoderOptions = []string{"-preset", "veryfast"}
+	case "h264_mf":
+		encoderOptions = []string{"-scenario", "display_remoting"}
+	}
+	filter := "hwdownload,format=bgra,scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1280:720:(ow-iw)/2:(oh-ih)/2,format=" + pixelFormat
 	args := []string{
 		"-hide_banner", "-loglevel", "warning",
-		"-init_hw_device", "d3d11va=d3d11:0",
-		"-filter_hw_device", "d3d11",
 		"-f", "lavfi", "-i", fmt.Sprintf("ddagrab=framerate=%d:draw_mouse=1", captureFPS),
-		"-vf", filter,
-		"-c:v", encoder, "-profile:v", profile,
+		"-vf", filter, "-c:v", encoder, "-profile:v", profile,
 	}
 	args = append(args, encoderOptions...)
 	args = append(args,
@@ -437,7 +471,11 @@ func ffmpegArgs(encoder string) []string {
 	if encoder == "h264_amf" {
 		profile = "constrained_baseline"
 	}
-	common := []string{"-vf", "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1280:720:(ow-iw)/2:(oh-ih)/2", "-c:v", encoder, "-profile:v", profile, "-pix_fmt", "yuv420p", "-fps_mode", "passthrough", "-g", "30", "-bf", "0", "-b:v", "6M", "-color_range", "pc", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-bsf:v", "h264_metadata=aud=insert", "-f", "h264", "pipe:1"}
+	pixelFormat := "yuv420p"
+	if encoder == "h264_mf" {
+		pixelFormat = "nv12"
+	}
+	common := []string{"-vf", "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1280:720:(ow-iw)/2:(oh-ih)/2", "-c:v", encoder, "-profile:v", profile, "-pix_fmt", pixelFormat, "-fps_mode", "passthrough", "-g", "30", "-bf", "0", "-b:v", "6M", "-color_range", "pc", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-bsf:v", "h264_metadata=aud=insert", "-f", "h264", "pipe:1"}
 	switch encoder {
 	case "h264_videotoolbox":
 		common = append([]string{"-realtime", "1", "-allow_sw", "0"}, common...)
@@ -448,7 +486,7 @@ func ffmpegArgs(encoder string) []string {
 	case "h264_qsv":
 		common = append([]string{"-preset", "veryfast"}, common...)
 	case "h264_mf":
-		common = append([]string{"-low_latency", "1"}, common...)
+		common = append([]string{"-scenario", "display_remoting"}, common...)
 	case "libx264":
 		common = append([]string{"-preset", "ultrafast", "-tune", "zerolatency"}, common...)
 	}
