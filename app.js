@@ -1,5 +1,4 @@
 (() => {
-  const macButton = document.querySelector('#download-mac');
   const winButton = document.querySelector('#download-windows');
   const releaseNote = document.querySelector('#release-note');
 
@@ -32,7 +31,6 @@
       });
       if (!response.ok) throw new Error('No public release found yet');
       const release = await response.json();
-      setDownload('mac', config.assets.mac, release);
       setDownload('windows', config.assets.windows, release);
       releaseNote.textContent = `Downloads from ${release.tag_name || 'the latest release'} · View the release on GitHub`;
       const link = document.createElement('a');
@@ -43,8 +41,7 @@
       releaseNote.replaceChildren(document.createTextNode(`${release.tag_name || 'Latest release'} · `), link);
     })
     .catch(() => {
-      macButton.setAttribute('aria-disabled', 'true');
       winButton.setAttribute('aria-disabled', 'true');
-      releaseNote.textContent = 'Downloads will appear here after Port8080 installers are published.';
+      releaseNote.textContent = 'The Windows download is temporarily unavailable. Mac build instructions are still available above.';
     });
 })();
