@@ -12,7 +12,7 @@ The host page is at `http://127.0.0.1:8766/host`. Only one viewer can control th
 
 ## Early release limits
 
-The stream uses direct WebRTC with public STUN. Networks that require a TURN relay may not connect. Capture and H.264 encoding use the operating system's hardware encoder; performance depends on the device and connection, so 1080p60 is a target and not a promise. Audio and clipboard sync are not included in this package.
+The stream uses direct WebRTC with public STUN. Networks that require a TURN relay may not connect. Port8080 now defaults to 1280×720 at 30 frames per second and a 6 Mbps video target to reduce capture load and upload demand. Available H.264 encoders vary by computer. Audio and clipboard sync are not included in this package.
 
 ## Building from source
 
