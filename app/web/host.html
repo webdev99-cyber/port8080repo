@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Port8080 Host</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui;background:#101217;color:#f3f5f8}body{max-width:760px;margin:8vh auto;padding:24px}h1{font-size:26px}p{color:#aeb6c2;line-height:1.55}.card{background:#191d25;border:1px solid #303643;border-radius:16px;padding:22px;margin-top:24px}.url{font:14px ui-monospace,monospace;overflow-wrap:anywhere;color:#b9d9ff;margin:16px 0}button{border:0;border-radius:9px;padding:11px 16px;margin-right:8px;font-weight:650;background:#b9d9ff;color:#111923;cursor:pointer}button.stop{background:#df786f;color:#200d0b}.status{min-height:24px;color:#bdc7d5}.small{font-size:13px}</style>
+<body><h1>Port8080 is running</h1><p>Keep this host machine awake. Anyone who has the link can control it while the tunnel is active.</p><section class="card"><div class="status" id="status">Waiting for secure tunnel URL…</div><div class="url" id="url"></div><button id="copy">Copy link</button><button class="stop" id="stop">Stop access</button><p class="small">Stopping closes the tunnel and exits Port8080. Share the link only with someone you trust.</p></section>
+<script>
+const statusEl=document.querySelector('#status'),urlEl=document.querySelector('#url');let current='';
+async function refresh(){try{const d=await (await fetch('/host/status')).json();current=d.url||'';urlEl.textContent=current;statusEl.textContent=d.ready?'Ready — tunnel link is active':'Tunnel is not ready';document.querySelector('#copy').disabled=!current}catch{statusEl.textContent='Host is not responding'}setTimeout(refresh,1500)}
+document.querySelector('#copy').onclick=async()=>{if(current){await navigator.clipboard.writeText(current);statusEl.textContent='Link copied'}};
+document.querySelector('#stop').onclick=async()=>{if(confirm('Stop the tunnel and end remote access?'))await fetch('/host/stop',{method:'POST'})};refresh();
+</script></body></html>

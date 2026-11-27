@@ -1,0 +1,161 @@
+name: Build Port8080 release packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v0.1.0
+        required: true
+        default: v0.1.0
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: Build macOS Apple silicon package
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+          cache: true
+          cache-dependency-path: app/go.sum
+      - name: Prepare package folder
+        run: mkdir -p "$RUNNER_TEMP/Port8080"
+      - name: Build Port8080 host
+        working-directory: app
+        env:
+          CGO_ENABLED: '1'
+          GOOS: darwin
+          GOARCH: arm64
+        run: go build -trimpath -ldflags='-s -w' -o "$RUNNER_TEMP/Port8080/Port8080" .
+      - name: Build minimal FFmpeg with macOS capture and hardware H.264
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/Port8080"
+          curl -fsSL https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz -o "$RUNNER_TEMP/ffmpeg.tar.xz"
+          tar -xJf "$RUNNER_TEMP/ffmpeg.tar.xz" -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/ffmpeg-7.1.1"
+          ./configure \
+            --prefix="$RUNNER_TEMP/ffmpeg-install" \
+            --arch=arm64 --target-os=darwin --cc=clang \
+            --enable-static --disable-shared --disable-debug --disable-doc \
+            --enable-avdevice --enable-indev=avfoundation --enable-videotoolbox
+          make -j3
+          make install
+          cp "$RUNNER_TEMP/ffmpeg-install/bin/ffmpeg" "$RUNNER_TEMP/Port8080/ffmpeg"
+          cp COPYING.LGPLv2.1 "$RUNNER_TEMP/Port8080/FFmpeg-LICENSE.txt"
+      - name: Add verified Cloudflare Tunnel helper and start command
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/Port8080"
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/download/2026.11.2/cloudflared-darwin-arm64.tgz -o cloudflared.tgz
+          echo 'f6d58eeec91ad1ec5fd1f7e4a587303772929b2625be5d24068033851c36ff55  cloudflared.tgz' | shasum -a 256 -c -
+          tar -xzf cloudflared.tgz
+          rm cloudflared.tgz
+          cp "$GITHUB_WORKSPACE/app/Start Port8080.command" .
+          chmod +x Port8080 ffmpeg cloudflared 'Start Port8080.command'
+          cp "$GITHUB_WORKSPACE/app/README.md" README.txt
+          cat > THIRD-PARTY-NOTICES.txt <<'EOF'
+          Port8080 includes Cloudflare Tunnel (cloudflared) 2026.11.2, Apache-2.0:
+          https://github.com/cloudflare/cloudflared
+
+          Port8080 includes a minimal FFmpeg 7.1.1 build. See FFmpeg-LICENSE.txt.
+          FFmpeg source: https://ffmpeg.org/download.html
+          EOF
+          mkdir -p "$RUNNER_TEMP/Port8080-dmg"
+          mv "$RUNNER_TEMP/Port8080" "$RUNNER_TEMP/Port8080-dmg/Port8080"
+          hdiutil create -quiet -volname Port8080 -srcfolder "$RUNNER_TEMP/Port8080-dmg" -ov -format UDZO "$RUNNER_TEMP/Port8080-macOS-arm64.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Port8080-macOS-arm64
+          path: ${{ runner.temp }}/Port8080-macOS-arm64.dmg
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    name: Build Windows x64 package
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+          cache: true
+          cache-dependency-path: app/go.sum
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc
+          update: true
+      - name: Prepare package folder
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path (Join-Path $env:RUNNER_TEMP 'Port8080') | Out-Null
+      - name: Build Port8080 host
+        working-directory: app
+        env:
+          CGO_ENABLED: '1'
+          GOOS: windows
+          GOARCH: amd64
+          CC: gcc
+        shell: pwsh
+        run: go build -trimpath -ldflags='-s -w' -o "$env:RUNNER_TEMP/Port8080/Port8080.exe" .
+      - name: Add FFmpeg and verified Cloudflare Tunnel helper
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = Join-Path $env:RUNNER_TEMP 'Port8080'
+          New-Item -ItemType Directory -Force -Path $pkg | Out-Null
+          $ffmpegZip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
+          Invoke-WebRequest 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-lgpl.zip' -OutFile $ffmpegZip
+          $extract = Join-Path $env:RUNNER_TEMP 'ffmpeg'
+          Expand-Archive -Path $ffmpegZip -DestinationPath $extract -Force
+          $ffmpeg = Get-ChildItem $extract -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $ffmpeg) { throw 'FFmpeg package did not contain ffmpeg.exe' }
+          Copy-Item $ffmpeg.FullName (Join-Path $pkg 'ffmpeg.exe')
+          Invoke-WebRequest 'https://raw.githubusercontent.com/FFmpeg/FFmpeg/n8.1/COPYING.LGPLv2.1' -OutFile (Join-Path $pkg 'FFmpeg-LICENSE.txt')
+          $tunnel = Join-Path $pkg 'cloudflared.exe'
+          Invoke-WebRequest 'https://github.com/cloudflare/cloudflared/releases/download/2026.11.2/cloudflared-windows-amd64.exe' -OutFile $tunnel
+          $expected = '555b46c85582461d189cac30d14ad05480d612613801be9f110b8ce08c5b2113'
+          if ((Get-FileHash $tunnel -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw 'cloudflared checksum did not match' }
+          Copy-Item "$env:GITHUB_WORKSPACE/app/Start-Port8080.bat" $pkg
+          Copy-Item "$env:GITHUB_WORKSPACE/app/README.md" (Join-Path $pkg 'README.txt')
+          @'
+          Port8080 includes Cloudflare Tunnel (cloudflared) 2026.11.2, Apache-2.0:
+          https://github.com/cloudflare/cloudflared
+
+          Port8080 includes FFmpeg. See FFmpeg-LICENSE.txt and the FFmpeg source at:
+          https://ffmpeg.org/download.html
+          '@ | Set-Content (Join-Path $pkg 'THIRD-PARTY-NOTICES.txt')
+          Compress-Archive -Path (Join-Path $pkg '*') -DestinationPath (Join-Path $env:RUNNER_TEMP 'Port8080-Windows-x64.zip') -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Port8080-Windows-x64
+          path: ${{ runner.temp }}/Port8080-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish GitHub release
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: Port8080-*
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Port8080 ${{ inputs.tag }}
+          draft: false
+          prerelease: false
+          files: |
+            release-assets/Port8080-macOS-arm64.dmg
+            release-assets/Port8080-Windows-x64.zip

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Port8080</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#07090d;color:#fff;font:14px system-ui;overflow:hidden}body{display:flex;align-items:center;justify-content:center;padding:7vh 0}#stage{position:relative;width:100%;height:86vh;display:flex;align-items:center;justify-content:center;background:#0c0e12}video{display:block;max-width:100%;max-height:100%;object-fit:contain;outline:none}#bar{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;opacity:.22;transition:opacity .2s}#stage:hover #bar,#bar:focus-within{opacity:1}button{border:1px solid #6c7684;border-radius:8px;background:#151922cc;color:#fff;padding:8px 12px;cursor:pointer}#state{padding:8px 12px;border-radius:8px;background:#151922cc;color:#d6dfeb}#help{position:absolute;bottom:10px;left:12px;right:12px;text-align:center;color:#9da7b4;font-size:12px;pointer-events:none;opacity:.6}#shade{position:absolute;inset:0;display:grid;place-items:center;background:#0c0e12;color:#dce4ef}#shade button{font-size:16px;padding:13px 20px}</style>
+<body><main id="stage" tabindex="0"><video id="video" autoplay playsinline></video><div id="bar"><span id="state">Connecting…</span><button id="full">Fullscreen</button></div><div id="help">Click the screen to control it · Esc exits fullscreen</div><div id="shade"><button id="connect">Connect to host</button></div></main>
+<script>
+(()=>{
+const token=location.pathname.split('/').pop(),video=document.querySelector('#video'),shade=document.querySelector('#shade'),state=document.querySelector('#state'),stage=document.querySelector('#stage');
+let pc,ws,keys=new Set(),lastMove=0,device=localStorage.getItem('desklink-device');if(!device){device=crypto.randomUUID();localStorage.setItem('desklink-device',device)}
+const setState=s=>state.textContent=s;
+function send(ch,obj){if(ch&&ch.readyState==='open')ch.send(JSON.stringify(obj))}
+async function connect(){document.querySelector('#connect').disabled=true;setState('Starting WebRTC…');const secure=location.protocol==='https:',scheme=secure?'wss':'ws';
+ ws=new WebSocket(`${scheme}://${location.host}/signal/${token}`);pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+ const control=pc.createDataChannel('control',{ordered:true}),motion=pc.createDataChannel('motion',{ordered:false,maxRetransmits:0});
+ pc.ontrack=e=>{video.srcObject=e.streams[0];shade.style.display='none';video.play().catch(()=>{});setState('Connected')};
+ pc.onconnectionstatechange=()=>{if(['failed','disconnected','closed'].includes(pc.connectionState)){setState('Connection '+pc.connectionState);shade.style.display='grid';document.querySelector('#connect').disabled=false}};
+ pc.oniceconnectionstatechange=()=>{if(pc.iceConnectionState==='checking')setState('Finding direct connection…')};
+ await new Promise((resolve,reject)=>{ws.onopen=resolve;ws.onerror=()=>reject(new Error('Could not reach host'))});
+ ws.onmessage=async e=>{const m=JSON.parse(e.data);if(m.type==='answer'){await pc.setRemoteDescription({type:'answer',sdp:m.sdp});setState('Connecting video…')}else if(m.type==='error'){setState(m.message||'Host error')}};
+ const offer=await pc.createOffer({offerToReceiveVideo:true});await pc.setLocalDescription(offer);
+ await Promise.race([new Promise(resolve=>{if(pc.iceGatheringState==='complete')resolve();else pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete')resolve()}}),new Promise(resolve=>setTimeout(resolve,9000))]);
+ ws.send(JSON.stringify({type:'offer',sdp:pc.localDescription.sdp,deviceId:device}));
+ control.onopen=()=>setState('Waiting for host video…');
+ const point=e=>{const r=video.getBoundingClientRect();return{x:Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))}};
+ stage.onpointermove=e=>{const n=performance.now();if(n-lastMove<8)return;lastMove=n;const p=point(e);if(video.clientWidth&&video.clientHeight)send(motion,{type:'move',...p})};
+ stage.onpointerdown=e=>{stage.focus();stage.setPointerCapture(e.pointerId);send(control,{type:'down',button:e.button===2?'right':e.button===1?'middle':'left',...point(e)})};stage.onpointerup=e=>send(control,{type:'up',button:e.button===2?'right':e.button===1?'middle':'left',...point(e)});stage.oncontextmenu=e=>e.preventDefault();
+ stage.onwheel=e=>{e.preventDefault();send(motion,{type:'scroll',delta:e.deltaY})};
+ window.onkeydown=e=>{if(!e.repeat){keys.add(e.key);send(control,{type:'keydown',key:e.key})}e.preventDefault()};window.onkeyup=e=>{keys.delete(e.key);send(control,{type:'keyup',key:e.key})};window.onblur=()=>{for(const key of keys)send(control,{type:'keyup',key});keys.clear()};
+}
+document.querySelector('#connect').onclick=()=>connect().catch(e=>{setState(e.message);document.querySelector('#connect').disabled=false});
+document.querySelector('#full').onclick=()=>stage.requestFullscreen?.();
+connect().catch(e=>{setState(e.message);document.querySelector('#connect').disabled=false});
+})();
+</script></body></html>
