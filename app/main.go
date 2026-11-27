@@ -347,7 +347,20 @@ func (a *App) capture(ctx context.Context, track *webrtc.TrackLocalStaticSample)
 }
 
 func (a *App) captureWithEncoder(ctx context.Context, track *webrtc.TrackLocalStaticSample, encoder string) error {
-	args := ffmpegArgs(encoder)
+	if runtime.GOOS == "windows" {
+		err := a.captureProcess(ctx, track, nativeWindowsFFmpegArgs(encoder))
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err == nil {
+			return nil
+		}
+		log.Printf("native D3D11 capture with %s failed; using compatibility capture: %v", encoder, err)
+	}
+	return a.captureProcess(ctx, track, ffmpegArgs(encoder))
+}
+
+func (a *App) captureProcess(ctx context.Context, track *webrtc.TrackLocalStaticSample, args []string) error {
 	cmd := exec.CommandContext(ctx, bundledTool("ffmpeg"), args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -382,6 +395,41 @@ func (a *App) captureWithEncoder(ctx context.Context, track *webrtc.TrackLocalSt
 	}
 	waited = true
 	return cmd.Wait()
+}
+
+func nativeWindowsFFmpegArgs(encoder string) []string {
+	filter := "scale_d3d11=width=1280:height=720:format=nv12"
+	if encoder == "h264_qsv" {
+		filter += ",hwmap=derive_device=qsv,format=qsv"
+	}
+	profile := "baseline"
+	encoderOptions := []string{}
+	switch encoder {
+	case "h264_nvenc":
+		encoderOptions = []string{"-preset", "p1", "-tune", "ull"}
+	case "h264_amf":
+		profile = "constrained_baseline"
+		encoderOptions = []string{"-usage", "ultralowlatency", "-quality", "speed"}
+	case "h264_qsv":
+		encoderOptions = []string{"-preset", "veryfast", "-async_depth", "1"}
+	case "h264_mf":
+		encoderOptions = []string{"-hw_encoding", "1", "-scenario", "display_remoting"}
+	}
+	args := []string{
+		"-hide_banner", "-loglevel", "warning",
+		"-init_hw_device", "d3d11va=d3d11:0",
+		"-filter_hw_device", "d3d11",
+		"-f", "lavfi", "-i", fmt.Sprintf("ddagrab=framerate=%d:draw_mouse=1", captureFPS),
+		"-vf", filter,
+		"-c:v", encoder, "-profile:v", profile,
+	}
+	args = append(args, encoderOptions...)
+	args = append(args,
+		"-fps_mode", "passthrough", "-g", "30", "-bf", "0", "-b:v", "6M",
+		"-color_range", "pc", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
+		"-bsf:v", "h264_metadata=aud=insert", "-f", "h264", "pipe:1",
+	)
+	return args
 }
 
 func ffmpegArgs(encoder string) []string {
