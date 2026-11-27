@@ -113,7 +113,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $pkg | Out-Null
           $ffmpegZip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
           Invoke-WebRequest 'https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-lgpl-9.0.zip' -OutFile $ffmpegZip
-          $ffmpegExpected = '14f5b3b3e5cd95cdf72b7204e2ab433bb4fa424c307f7ad083c250140ec0637a'
+          $ffmpegExpected = '0261393ce80c524c07b763a253cc045ce7924d743a4b027ef108c998c5703f54'
           if ((Get-FileHash $ffmpegZip -Algorithm SHA256).Hash.ToLower() -ne $ffmpegExpected) { throw 'FFmpeg archive checksum did not match' }
           $extract = Join-Path $env:RUNNER_TEMP 'ffmpeg'
           Expand-Archive -Path $ffmpegZip -DestinationPath $extract -Force
