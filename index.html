@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101310">
+  <meta name="description" content="Port8080 is a remote desktop tool for controlling your Mac or Windows computer from Chrome.">
+  <title>Port8080 — your desktop, wherever you are</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header wrap">
+    <a class="brand" href="#top" aria-label="Port8080 home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>port<span class="brand-number">8080</span></span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a class="nav-download" href="#download">Download</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="status-dot"></span> REMOTE DESKTOP · MAC + WINDOWS</p>
+        <h1>Your desktop,<br><em>wherever you are.</em></h1>
+        <p class="hero-lede">Port8080 lets you see and control your own computer from Chrome. Start the host, open its private link, and pick up right where you left off.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#download">Get Port8080 <span aria-hidden="true">↗</span></a>
+          <a class="button button-quiet" href="#how">See how it works <span aria-hidden="true">↓</span></a>
+        </div>
+        <p class="hero-note">A host app for macOS and Windows. Chrome on the device you connect from.</p>
+      </div>
+      <div class="screen-card" aria-label="Illustration of a remote desktop session">
+        <div class="screen-top"><div class="window-dots"><b></b><b></b><b></b></div><span>PORT8080 / LIVE SESSION</span><span class="live"><i></i> LIVE</span></div>
+        <div class="screen-art">
+          <div class="art-grid"></div>
+          <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
+          <div class="art-core"><span>8080</span><small>YOUR MACHINE</small></div>
+          <div class="art-cursor"><span></span><b>you</b></div>
+          <div class="art-label label-a">LOW-LATENCY VIDEO</div>
+          <div class="art-label label-b">PRIVATE SESSION LINK</div>
+        </div>
+        <div class="screen-bottom"><span><i class="signal-bars"><b></b><b></b><b></b><b></b></i> Connected directly when available</span><span>CHROME CLIENT</span></div>
+      </div>
+    </section>
+
+    <section class="ticker" aria-label="Supported platforms">
+      <div class="wrap ticker-inner"><span>BUILT FOR YOUR DEVICES</span><b>macOS</b><i></i><b>Windows</b><i></i><b>Google Chrome</b><span class="ticker-right">ONE HOST · ONE VIEWER</span></div>
+    </section>
+
+    <section class="section wrap" id="how">
+      <div class="section-head"><p class="eyebrow">THREE SIMPLE STEPS</p><h2>Pick up from anywhere.</h2><p>Port8080 runs on the computer you want to reach. You connect from a normal Chrome browser.</p></div>
+      <div class="steps">
+        <article class="step"><span class="step-num">01</span><div class="step-icon icon-power">⏻</div><h3>Start the host</h3><p>Open Port8080 on your Mac or Windows computer. Its small host window shows when it is ready.</p></article>
+        <article class="step"><span class="step-num">02</span><div class="step-icon icon-link">↗</div><h3>Open your link</h3><p>Copy the temporary link from the host window and open it in Chrome on the device you’re using.</p></article>
+        <article class="step"><span class="step-num">03</span><div class="step-icon icon-screen">⌘</div><h3>Take the controls</h3><p>See the live desktop and use your mouse and keyboard. Stop the host when you’re finished.</p></article>
+      </div>
+    </section>
+
+    <section class="feature-band" id="features">
+      <div class="wrap feature-layout">
+        <div class="feature-intro"><p class="eyebrow">MADE TO FEEL FAMILIAR</p><h2>Your screen.<br><em>Your controls.</em></h2><p>Designed to make a remote session feel close to sitting at the computer itself.</p></div>
+        <div class="feature-list">
+          <article><span class="feature-icon">◉</span><div><h3>Live desktop video</h3><p>WebRTC streams the host screen to Chrome. The stream adapts to your computer and connection.</p></div></article>
+          <article><span class="feature-icon">⌖</span><div><h3>Mouse and keyboard</h3><p>Click, scroll, drag, and hold keys for longer actions. Your browser may reserve some system shortcuts.</p></div></article>
+          <article><span class="feature-icon">↗</span><div><h3>A link you control</h3><p>A temporary tunnel link makes it easy to reach the host without setting up a domain or router rules.</p></div></article>
+          <article><span class="feature-icon">■</span><div><h3>Stop when you’re done</h3><p>End the session from the host computer to close the link and stop remote access.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="download-section wrap" id="download">
+      <div class="download-copy"><p class="eyebrow">TAKE PORT8080 WITH YOU</p><h2>Choose your host.</h2><p>Install Port8080 on the computer you want to control. The browser viewer runs in Chrome—there’s nothing to install on the viewing device.</p></div>
+      <div class="download-grid">
+        <article class="download-card" data-platform="mac">
+          <div class="platform-symbol" aria-hidden="true">⌘</div><div class="platform-meta"><span class="platform-name">macOS</span><span class="platform-detail">Apple silicon · 64-bit</span></div>
+          <a class="download-button" id="download-mac" href="#download" aria-disabled="true">Download for Mac <span>↓</span></a>
+          <p class="download-state" id="status-mac">Release package coming soon</p>
+        </article>
+        <article class="download-card" data-platform="windows">
+          <div class="platform-symbol windows-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="platform-meta"><span class="platform-name">Windows</span><span class="platform-detail">Windows 10+ · 64-bit</span></div>
+          <a class="download-button" id="download-windows" href="#download" aria-disabled="true">Download for Windows <span>↓</span></a>
+          <p class="download-state" id="status-windows">Release package coming soon</p>
+        </article>
+      </div>
+      <p class="release-note" id="release-note">Downloads will appear here when Port8080 installers are published.</p>
+    </section>
+
+    <section class="trust-section">
+      <div class="wrap trust-layout"><div><p class="eyebrow">KEEP ACCESS IN YOUR HANDS</p><h2>Your link is the key.</h2></div><div class="trust-copy"><p>Anyone with your active Port8080 link can control the host computer. Treat it like a password: share it privately, and stop the host when you’re done.</p><p>Performance depends on the host hardware and network. The 1080p/60 goal is a target, not a guarantee. A good connection helps keep the stream smooth.</p></div></div>
+    </section>
+
+    <section class="faq-section wrap">
+      <p class="eyebrow">GOOD TO KNOW</p><h2>Before your first session.</h2>
+      <div class="faq-grid">
+        <article><h3>What do I need?</h3><p>A Mac or Windows host, Chrome on the viewer, and an internet connection. macOS may ask for screen recording and accessibility permissions.</p></article>
+        <article><h3>Does it work on every network?</h3><p>Some networks block direct WebRTC connections. Port8080’s first release may not connect on those networks.</p></article>
+        <article><h3>Is the link safe to post publicly?</h3><p>No. The active link grants control of the host to anyone who has it. Only share it with someone you trust.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><div class="wrap footer-inner"><a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>port<span class="brand-number">8080</span></span></a><span>Remote desktop, on your terms.</span><a href="#top">Back to top ↑</a></div></footer>
+  <script src="app.js" defer></script>
+</body>
+</html>
