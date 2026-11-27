@@ -384,7 +384,11 @@ func (a *App) captureWithEncoder(ctx context.Context, track *webrtc.TrackLocalSt
 }
 
 func ffmpegArgs(encoder string) []string {
-	common := []string{"-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2", "-c:v", encoder, "-profile:v", "baseline", "-pix_fmt", "yuv420p", "-r", "60", "-g", "60", "-bf", "0", "-b:v", "24M", "-color_range", "pc", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-bsf:v", "h264_metadata=aud=insert", "-f", "h264", "pipe:1"}
+	profile := "baseline"
+	if encoder == "h264_amf" {
+		profile = "constrained_baseline"
+	}
+	common := []string{"-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2", "-c:v", encoder, "-profile:v", profile, "-pix_fmt", "yuv420p", "-r", "60", "-g", "60", "-bf", "0", "-b:v", "24M", "-color_range", "pc", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-bsf:v", "h264_metadata=aud=insert", "-f", "h264", "pipe:1"}
 	switch encoder {
 	case "h264_videotoolbox":
 		common = append([]string{"-realtime", "1", "-allow_sw", "0"}, common...)
