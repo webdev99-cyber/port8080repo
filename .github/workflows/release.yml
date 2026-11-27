@@ -112,8 +112,8 @@ jobs:
           $pkg = Join-Path $env:RUNNER_TEMP 'Port8080'
           New-Item -ItemType Directory -Force -Path $pkg | Out-Null
           $ffmpegZip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
-          Invoke-WebRequest 'https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-lgpl-9.0.zip' -OutFile $ffmpegZip
-          $ffmpegExpected = '0261393ce80c524c07b763a253cc045ce7924d743a4b027ef108c998c5703f54'
+          Invoke-WebRequest 'https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/autobuild-2026-11-26-12-56/ffmpeg-n9.0.2-982-g836df4e858-win64-lgpl-9.0.zip' -OutFile $ffmpegZip
+          $ffmpegExpected = '1b60deb4fd8c4f13f987b9df3dbb3abe02eb135f66f080046e9e497f3f748fac'
           if ((Get-FileHash $ffmpegZip -Algorithm SHA256).Hash.ToLower() -ne $ffmpegExpected) { throw 'FFmpeg archive checksum did not match' }
           $extract = Join-Path $env:RUNNER_TEMP 'ffmpeg'
           Expand-Archive -Path $ffmpegZip -DestinationPath $extract -Force
