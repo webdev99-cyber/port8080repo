@@ -30,6 +30,7 @@ import (
 
 const listenAddr = "127.0.0.1:8765"
 const adminAddr = "127.0.0.1:8766"
+const captureFPS = 30
 
 //go:embed web/host.html
 var hostHTML string
@@ -367,7 +368,7 @@ func (a *App) captureWithEncoder(ctx context.Context, track *webrtc.TrackLocalSt
 	if err != nil {
 		return err
 	}
-	ticker := time.NewTicker(time.Second / 60)
+	ticker := time.NewTicker(time.Second / captureFPS)
 	defer ticker.Stop()
 	for frame := range frames {
 		select {
@@ -376,7 +377,7 @@ func (a *App) captureWithEncoder(ctx context.Context, track *webrtc.TrackLocalSt
 		case <-ticker.C:
 		}
 		if len(frame) > 0 {
-			_ = track.WriteSample(media.Sample{Data: frame, Duration: time.Second / 60})
+			_ = track.WriteSample(media.Sample{Data: frame, Duration: time.Second / captureFPS})
 		}
 	}
 	waited = true
@@ -388,7 +389,7 @@ func ffmpegArgs(encoder string) []string {
 	if encoder == "h264_amf" {
 		profile = "constrained_baseline"
 	}
-	common := []string{"-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2", "-c:v", encoder, "-profile:v", profile, "-pix_fmt", "yuv420p", "-r", "60", "-g", "60", "-bf", "0", "-b:v", "24M", "-color_range", "pc", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-bsf:v", "h264_metadata=aud=insert", "-f", "h264", "pipe:1"}
+	common := []string{"-vf", "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1280:720:(ow-iw)/2:(oh-ih)/2", "-c:v", encoder, "-profile:v", profile, "-pix_fmt", "yuv420p", "-fps_mode", "passthrough", "-g", "30", "-bf", "0", "-b:v", "6M", "-color_range", "pc", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-bsf:v", "h264_metadata=aud=insert", "-f", "h264", "pipe:1"}
 	switch encoder {
 	case "h264_videotoolbox":
 		common = append([]string{"-realtime", "1", "-allow_sw", "0"}, common...)
@@ -409,9 +410,9 @@ func ffmpegArgs(encoder string) []string {
 		if display == "" {
 			display = "1"
 		}
-		return append([]string{"-f", "avfoundation", "-capture_cursor", "1", "-framerate", "60", "-i", display + ":none"}, common...)
+		return append([]string{"-f", "avfoundation", "-capture_cursor", "1", "-framerate", fmt.Sprint(captureFPS), "-i", display + ":none"}, common...)
 	}
-	return append([]string{"-f", "gdigrab", "-framerate", "60", "-draw_mouse", "1", "-i", "desktop"}, common...)
+	return append([]string{"-f", "gdigrab", "-framerate", fmt.Sprint(captureFPS), "-draw_mouse", "1", "-i", "desktop"}, common...)
 }
 
 // accessUnits turns FFmpeg's Annex-B stream into one sample per AUD-delimited frame.
