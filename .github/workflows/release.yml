@@ -113,13 +113,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path $pkg | Out-Null
           $ffmpegZip = Join-Path $env:RUNNER_TEMP 'ffmpeg.zip'
           Invoke-WebRequest 'https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-lgpl-9.0.zip' -OutFile $ffmpegZip
+          $ffmpegExpected = '14f5b3b3e5cd95cdf72b7204e2ab433bb4fa424c307f7ad083c250140ec0637a'
+          if ((Get-FileHash $ffmpegZip -Algorithm SHA256).Hash.ToLower() -ne $ffmpegExpected) { throw 'FFmpeg archive checksum did not match' }
           $extract = Join-Path $env:RUNNER_TEMP 'ffmpeg'
           Expand-Archive -Path $ffmpegZip -DestinationPath $extract -Force
           $ffmpeg = Get-ChildItem $extract -Recurse -Filter ffmpeg.exe | Select-Object -First 1
           if (-not $ffmpeg) { throw 'FFmpeg package did not contain ffmpeg.exe' }
           Copy-Item $ffmpeg.FullName (Join-Path $pkg 'ffmpeg.exe')
-          $ffmpegExpected = '0261393ce80c524c07b763a253cc045ce7924d743a4b027ef108c998c5703f54'
-          if ((Get-FileHash (Join-Path $pkg 'ffmpeg.exe') -Algorithm SHA256).Hash.ToLower() -ne $ffmpegExpected) { throw 'FFmpeg checksum did not match' }
           Invoke-WebRequest 'https://raw.githubusercontent.com/FFmpeg/FFmpeg/n9.0/COPYING.LGPLv2.1' -OutFile (Join-Path $pkg 'FFmpeg-LICENSE.txt')
           $tunnel = Join-Path $pkg 'cloudflared.exe'
           Invoke-WebRequest 'https://github.com/cloudflare/cloudflared/releases/download/2026.11.2/cloudflared-windows-amd64.exe' -OutFile $tunnel
