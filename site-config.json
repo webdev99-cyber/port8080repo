@@ -1,0 +1,7 @@
+{
+  "repository": "webdev99-cyber/port8080repo",
+  "assets": {
+    "mac": "Port8080-macOS-arm64.dmg",
+    "windows": "Port8080-Windows-x64.zip"
+  }
+}
